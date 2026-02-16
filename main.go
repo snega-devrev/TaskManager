@@ -23,7 +23,8 @@ import (
 const usage = `Task Manager - CLI to manage tasks (stored in JSON).
 
 Usage:
-  task [options] <command> [arguments]
+  task [options]                    Interactive mode (menu-driven; no command = start here)
+  task [options] <command> [args]   Command mode (e.g. task add -title "Buy milk")
 
 Commands:
   add [-title "title"] [--due DATE] [--priority low|med|high] [--description "..."] [--tag TAG...]
@@ -60,10 +61,6 @@ func main() {
 	}
 
 	args := flag.Args()
-	if len(args) == 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	st := store.New(*dataFile)
 	defer func() {
@@ -82,6 +79,12 @@ func main() {
 	}()
 
 	application := app.New(st)
+
+	if len(args) == 0 {
+		runInteractive(application)
+		return
+	}
+
 	cmd := strings.ToLower(strings.TrimSpace(args[0]))
 	cmdArgs := args[1:]
 	slog.Debug("command", "cmd", cmd, "args", cmdArgs, "data", *dataFile)
@@ -115,6 +118,163 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+const interactiveMenu = `
+  1. Add task      2. List tasks    3. Mark done     4. Delete task
+  5. Edit task     6. Search        7. Tag add      8. Clear done
+  9. Reset all     0. Exit
+`
+
+func runInteractive(a *app.App) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for {
+		fmt.Print(interactiveMenu)
+		fmt.Print("Choice: ")
+		if !scanner.Scan() {
+			break
+		}
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		parts := strings.Fields(line)
+		choice := strings.ToLower(parts[0])
+		rest := strings.TrimSpace(strings.Join(parts[1:], " "))
+
+		var err error
+		switch choice {
+		case "0", "exit", "q", "quit":
+			fmt.Println("Bye.")
+			return
+		case "1", "add":
+			if rest == "" {
+				fmt.Print("Title: ")
+				if scanner.Scan() {
+					rest = strings.TrimSpace(scanner.Text())
+				}
+			}
+			if rest != "" {
+				err = runAdd(a, []string{"-title", rest})
+			} else {
+				err = fmt.Errorf("title cannot be empty")
+			}
+		case "2", "list":
+			err = runList(a, nil)
+		case "3", "done":
+			idStr := rest
+			if idStr == "" {
+				fmt.Print("Task ID: ")
+				if scanner.Scan() {
+					idStr = strings.TrimSpace(scanner.Text())
+				}
+			}
+			if idStr != "" {
+				err = runDone(a, []string{idStr})
+			} else {
+				err = fmt.Errorf("task ID required")
+			}
+		case "4", "delete":
+			idStr := rest
+			if idStr == "" {
+				fmt.Print("Task ID: ")
+				if scanner.Scan() {
+					idStr = strings.TrimSpace(scanner.Text())
+				}
+			}
+			if idStr != "" {
+				err = runDelete(a, []string{idStr})
+			} else {
+				err = fmt.Errorf("task ID required")
+			}
+		case "5", "edit":
+			idStr := rest
+			if idStr == "" {
+				fmt.Print("Task ID: ")
+				if scanner.Scan() {
+					idStr = strings.TrimSpace(scanner.Text())
+				}
+			}
+			if idStr == "" {
+				err = fmt.Errorf("task ID required")
+				break
+			}
+			editArgs := []string{idStr}
+			fmt.Print("New title (Enter to keep): ")
+			if scanner.Scan() {
+				t := strings.TrimSpace(scanner.Text())
+				if t != "" {
+					editArgs = append(editArgs, "-title", t)
+				}
+			}
+			fmt.Print("New due date YYYY-MM-DD (Enter to keep): ")
+			if scanner.Scan() {
+				d := strings.TrimSpace(scanner.Text())
+				if d != "" {
+					editArgs = append(editArgs, "-due", d)
+				}
+			}
+			fmt.Print("New priority low|med|high (Enter to keep): ")
+			if scanner.Scan() {
+				p := strings.TrimSpace(scanner.Text())
+				if p != "" {
+					editArgs = append(editArgs, "-priority", p)
+				}
+			}
+			fmt.Print("New status todo|in-progress|done (Enter to keep): ")
+			if scanner.Scan() {
+				s := strings.TrimSpace(scanner.Text())
+				if s != "" {
+					editArgs = append(editArgs, "-status", s)
+				}
+			}
+			if len(editArgs) == 1 {
+				err = fmt.Errorf("nothing to update: enter at least one new value")
+			} else {
+				err = runEdit(a, editArgs)
+			}
+		case "6", "search":
+			if rest == "" {
+				fmt.Print("Keyword: ")
+				if scanner.Scan() {
+					rest = strings.TrimSpace(scanner.Text())
+				}
+			}
+			if rest != "" {
+				err = runSearch(a, []string{rest})
+			} else {
+				err = fmt.Errorf("keyword required")
+			}
+		case "7", "tag":
+			args := strings.Fields(rest)
+			if len(args) < 2 {
+				if rest != "" {
+					fmt.Print("Tag: ")
+				} else {
+					fmt.Print("Task ID and tag (e.g. 1 work): ")
+				}
+				if scanner.Scan() {
+					args = strings.Fields(scanner.Text())
+				}
+			}
+			if len(args) >= 2 {
+				err = runTag(a, []string{"add", args[0], strings.Join(args[1:], " ")})
+			} else {
+				err = fmt.Errorf("task ID and tag required")
+			}
+		case "8", "clear":
+			err = runClear(a, []string{"-done"})
+		case "9", "reset":
+			err = runReset(a, nil)
+		default:
+			fmt.Printf("Unknown choice: %q\n", choice)
+			continue
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
+		fmt.Println()
 	}
 }
 

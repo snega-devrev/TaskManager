@@ -268,8 +268,13 @@ func (a *App) Edit(id int, opts EditOpts) error {
 			}
 			if opts.Status != nil {
 				list.Tasks[i].Status = *opts.Status
-				if *opts.Status == domain.StatusDone && list.Tasks[i].CompletedAt == nil {
-					list.Tasks[i].CompletedAt = &now
+				if *opts.Status == domain.StatusDone {
+					if list.Tasks[i].CompletedAt == nil {
+						list.Tasks[i].CompletedAt = &now
+					}
+				} else {
+					// Revert from done: clear CompletedAt when moving to todo or in-progress
+					list.Tasks[i].CompletedAt = nil
 				}
 			}
 			list.Tasks[i].UpdatedAt = now
