@@ -4,6 +4,7 @@ A command-line task manager written in Go with JSON persistence, debounced autos
 
 ## Features
 
+- **Interactive mode** – Run with no command for a menu-driven loop (Add, List, Done, Delete, Edit, Search, Tag, Clear, Reset, Exit)
 - **CRUD** – Add, list, done, delete, edit tasks
 - **Rich task model** – Title, description, priority (low/med/high), due date, tags, status (todo/in-progress/done)
 - **Filters & sort** – List by all/done/pending, due today, overdue; sort by due date, priority, or created
@@ -13,6 +14,7 @@ A command-line task manager written in Go with JSON persistence, debounced autos
 - **Search** – By keyword in title/description
 - **Tags** – `tag add <id> <tag>`
 - **Clear done** – `clear --done` to remove all completed tasks
+- **Reset** – `reset [-force]` to delete all tasks and start from id 1
 - **Signal handling** – Ctrl+C flushes pending save before exit
 - **Logging** – `-verbose` for debug (slog)
 
@@ -25,6 +27,10 @@ go build -o task .
 ## Usage
 
 ```bash
+# Interactive mode (no command = menu loop)
+./task
+./task -data /path/to/tasks.json
+
 # Add tasks: use -title when passing other flags (due, priority, tag, description)
 ./task add "Buy groceries"
 ./task add -title "Finish report" -due 2026-02-20 -priority high -tag work
@@ -58,19 +64,23 @@ go build -o task .
 # Clear completed
 ./task clear -done
 
+# Reset all tasks (confirm unless -force)
+./task reset
+./task reset -force
+
 # Global options
 ./task -data /path/to/tasks.json list
 ./task -verbose add -title "debug task"
 ```
 
-Default data file: `~/.taskmanager/tasks.json`. Override with `-data`.
+**Data file:** Default is `~/.taskmanager/tasks.json` (so each OS user gets a separate file via their home directory). Override with `-data`. If two people use the same `-data` path (e.g. shared drive), they see the same task list; the app does not filter by user.
 
 ## Project structure
 
 - **`internal/domain`** – Task model (id, title, description, priority, due_date, tags, status, created_at, updated_at, completed_at); validation helpers
 - **`internal/store`** – JSON persistence: atomic write (temp file → rename), backup before overwrite, `sync.RWMutex`, debounced autosave goroutine
 - **`internal/app`** – Business logic (AddTask, ListTasks, Done, Delete, Edit, Search, TagAdd, ClearDone); no I/O
-- **`main.go`** – CLI: subcommands, flags, table/JSON output, confirmation, signal handling
+- **`main.go`** – CLI: interactive mode (no-command menu), subcommands, flags, table/JSON output, confirmation, signal handling
 
 ## Practices
 
