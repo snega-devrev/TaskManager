@@ -19,19 +19,19 @@ const (
 
 // Task represents a single task in the task manager.
 type Task struct {
-	ID          int        `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Priority    string     `json:"priority,omitempty"` // low, med, high
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	Tags        []string   `json:"tags,omitempty"`
-	Status      string     `json:"status"` // todo, in-progress, done
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	ID          int        `json:"id" bson:"id"`
+	Title       string     `json:"title" bson:"title"`
+	Description string     `json:"description,omitempty" bson:"description,omitempty"`
+	Priority    string     `json:"priority,omitempty" bson:"priority,omitempty"` // low, med, high
+	DueDate     *time.Time `json:"due_date,omitempty" bson:"due_date,omitempty"`
+	Tags        []string   `json:"tags,omitempty" bson:"tags,omitempty"`
+	Status      string     `json:"status" bson:"status"` // todo, in-progress, done
+	CreatedAt   time.Time  `json:"created_at" bson:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" bson:"updated_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty" bson:"completed_at,omitempty"`
 
 	// LegacyCompleted is only for reading old JSON ("completed": true); Status is authoritative.
-	LegacyCompleted bool `json:"completed,omitempty"`
+	LegacyCompleted bool `json:"completed,omitempty" bson:"completed,omitempty"`
 }
 
 // Completed returns true if the task is in done status.
@@ -41,8 +41,8 @@ func (t *Task) Completed() bool {
 
 // TaskList holds a collection of tasks with the next ID for new tasks.
 type TaskList struct {
-	Tasks  []Task `json:"tasks"` //slice of Task objects
-	NextID int    `json:"next_id"`
+	Tasks  []Task `json:"tasks" bson:"tasks"` // slice of Task objects
+	NextID int    `json:"next_id" bson:"next_id"`
 }
 
 // NewTaskList returns an empty TaskList ready for use.

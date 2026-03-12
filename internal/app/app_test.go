@@ -1,7 +1,8 @@
 package app
 
 import (
-	"path/filepath"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -9,10 +10,25 @@ import (
 	"taskmanager/internal/store"
 )
 
+// mongoStoreForTest creates a MongoStore for tests using MONGO_URI (default localhost).
+// Skips the test if MongoDB is not available. Uses a unique collection per test.
+func mongoStoreForTest(t *testing.T) store.TaskStore {
+	t.Helper()
+	uri := os.Getenv("MONGO_URI")
+	if uri == "" {
+		uri = "mongodb://localhost:27017"
+	}
+	// Unique collection per test so tests don't clash
+	coll := "tasks_" + strings.ReplaceAll(t.Name(), "/", "_")
+	st, err := store.NewMongo(uri, "taskmanager_test", coll)
+	if err != nil {
+		t.Skipf("MongoDB not available: %v", err)
+	}
+	return st
+}
+
 func TestApp_AddTask_List_Done_Delete(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "tasks.json")
-	st := store.New(path)
+	st := mongoStoreForTest(t)
 	defer st.Close()
 	a := New(st)
 
@@ -55,8 +71,7 @@ func TestApp_AddTask_List_Done_Delete(t *testing.T) {
 }
 
 func TestApp_AddTask_EmptyTitle(t *testing.T) {
-	dir := t.TempDir()
-	st := store.New(filepath.Join(dir, "tasks.json"))
+	st := mongoStoreForTest(t)
 	defer st.Close()
 	a := New(st)
 
@@ -67,8 +82,7 @@ func TestApp_AddTask_EmptyTitle(t *testing.T) {
 }
 
 func TestApp_Done_NotFound(t *testing.T) {
-	dir := t.TempDir()
-	st := store.New(filepath.Join(dir, "tasks.json"))
+	st := mongoStoreForTest(t)
 	defer st.Close()
 	a := New(st)
 
@@ -79,9 +93,7 @@ func TestApp_Done_NotFound(t *testing.T) {
 }
 
 func TestApp_ClearDone(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "tasks.json")
-	st := store.New(path)
+	st := mongoStoreForTest(t)
 	defer st.Close()
 	a := New(st)
 

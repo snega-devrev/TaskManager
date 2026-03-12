@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package taskmanager;
+
+option go_package = "taskmanager/api/proto";
+
+// AuthService handles registration and login; returns JWT for use with TaskService.
+service AuthService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+// TaskService exposes task manager operations over gRPC.
+service TaskService {
+  rpc AddTask(AddTaskRequest) returns (AddTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
+  rpc EditTask(EditTaskRequest) returns (EditTaskResponse);
+  rpc SearchTasks(SearchTasksRequest) returns (SearchTasksResponse);
+  rpc TagAdd(TagAddRequest) returns (TagAddResponse);
+  rpc Reset(ResetRequest) returns (ResetResponse);
+}
+
+// Timestamps are Unix seconds (UTC). Zero = not set.
+message Task {
+  int32 id = 1;
+  string title = 2;
+  string description = 3;
+  string priority = 4;   // low, med, high
+  int64 due_date = 5;    // Unix seconds
+  repeated string tags = 6;
+  string status = 7;     // todo, in-progress, done
+  int64 created_at = 8;
+  int64 updated_at = 9;
+  int64 completed_at = 10;  // 0 = not completed
+}
+
+message AddTaskRequest {
+  string title = 1;
+  string description = 2;
+  string priority = 3;   // low, med, high; empty = med
+  int64 due_date = 4;    // Unix seconds; 0 = none
+  repeated string tags = 5;
+}
+
+message AddTaskResponse {
+  Task task = 1;
+}
+
+message GetTaskRequest {
+  int32 id = 1;
+}
+
+message GetTaskResponse {
+  Task task = 1;
+}
+
+enum ListFilter {
+  LIST_FILTER_UNSPECIFIED = 0;
+  LIST_FILTER_ALL = 1;
+  LIST_FILTER_DONE = 2;
+  LIST_FILTER_PENDING = 3;
+}
+
+enum SortBy {
+  SORT_BY_UNSPECIFIED = 0;
+  SORT_BY_CREATED = 1;
+  SORT_BY_DUE = 2;
+  SORT_BY_PRIORITY = 3;
+}
+
+message ListTasksRequest {
+  ListFilter filter = 1;
+  SortBy sort_by = 2;
+  bool due_today = 3;
+  bool overdue = 4;
+}
+
+message ListTasksResponse {
+  repeated Task tasks = 1;
+  string user_id = 2;   // user these tasks belong to (from JWT sub or metadata)
+}
+
+message UpdateStatusRequest {
+  int32 id = 1;
+  string status = 2;   // todo, in-progress, done
+}
+
+message UpdateStatusResponse {}
+
+message DeleteTaskRequest {
+  int32 id = 1;
+}
+
+message DeleteTaskResponse {}
+
+message EditTaskRequest {
+  int32 id = 1;
+  optional string title = 2;
+  optional string description = 3;
+  optional string priority = 4;
+  optional int64 due_date = 5;  // Unix seconds; 0 = clear
+  optional string status = 6;
+}
+
+message EditTaskResponse {}
+
+message SearchTasksRequest {
+  string keyword = 1;
+}
+
+message SearchTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message TagAddRequest {
+  int32 id = 1;
+  string tag = 2;
+}
+
+message TagAddResponse {
+  bool added = 1;
+}
+
+message ResetRequest {}
+
+message ResetResponse {}
+
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  string token = 1;  // JWT to use as Authorization: Bearer <token>
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;  // JWT to use as Authorization: Bearer <token>
+}
